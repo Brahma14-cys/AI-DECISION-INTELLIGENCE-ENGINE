@@ -1,0 +1,5 @@
+# No optional legal NER runtime is currently approved for installation.
+# The legacy OpenNyAI model was retired because its spaCy 3.2.x dependency
+# required Python 3.10 and scored poorly on the project's KING benchmark.
+# Keep LEGAL_NER_ENABLED=false until a replacement supports Python 3.12/3.14
+# and passes a documented evaluation on the target document types.

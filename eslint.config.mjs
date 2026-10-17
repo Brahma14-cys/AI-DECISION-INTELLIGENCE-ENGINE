@@ -9,9 +9,13 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
+    ".pytest_cache/**",
     "out/**",
     "build/**",
     "next-env.d.ts",
+    ".runtime/**",
+    "backend/**",
+    "data/**",
   ]),
 ]);
 

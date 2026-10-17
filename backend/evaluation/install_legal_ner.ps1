@@ -1,0 +1,2 @@
+$ErrorActionPreference = "Stop"
+throw "The legacy OpenNyAI spaCy 3.2.x installer is retired. It is incompatible with the supported Python 3.12/3.14 runtimes and its KING exact-span F1 was 0.165. Keep LEGAL_NER_ENABLED=false until a replacement model is validated on target legal documents."

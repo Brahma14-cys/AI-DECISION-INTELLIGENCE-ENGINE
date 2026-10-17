@@ -1,26 +1,320 @@
+@import url('https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700,800,900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+  
+  /* Modern Typography Tokens: Satoshi, Montserrat Medium/Bold, Poppins */
+  --font-sans: 'Satoshi', 'Poppins', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: 'Montserrat', 'Satoshi', 'Poppins', sans-serif;
+  --font-heading: 'Montserrat', 'Satoshi', sans-serif;
+  
+  /* 4.2 Colour: light theme (refined, less yellow, more paper) */
+  --bg: #FAF9F6;              /* page background */
+  --sidebar: #F3F1EB;         /* left rail */
+  --surface: #FFFFFF;         /* tables, drawers, menus, inputs */
+  --surface-2: #F6F4EE;       /* hover rows, subtle fills */
+  --border: #E7E3DA;          /* hairlines */
+  --border-strong: #D3CCBD;   /* input borders, focus-adjacent */
+  --text: #1B1916;            /* primary text */
+  --text-muted: #6A655D;      /* secondary text */
+  --text-faint: #968F84;      /* placeholders, disabled */
+  
+  --primary: #5E1B2C;         /* oxblood, primary buttons, active nav, links */
+  --primary-hover: #4A1423;
+  --primary-press: #380E1A;
+  --primary-tint: #F4EAEA;    /* active nav bg, selected rows */
+  --primary-link: #5E1B2C;
+  --on-primary: #FFFFFF;
+  
+  --brass: #9C7F4F;           /* hairline accents, focus ring, tiny marks only */
+  --success: #4B7358;         /* status dot only */
+  --warning: #A8741F;         /* status dot only */
+  --danger: #A33A3A;          /* status dot, error bar */
+  --info: #4A6382;            /* rarely, info icon */
+  
+  --focus-ring: #9C7F4F;
+  --shadow-drawer: 0 8px 24px rgba(20, 16, 12, 0.10);
+  --shadow-popover: 0 8px 24px rgba(20, 16, 12, 0.10);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+[data-theme="dark"] {
+  color-scheme: dark;
+  
+  /* 4.3 Colour: dark theme (ink, not brown) */
+  --bg: #111010;
+  --sidebar: #0C0B0B;
+  --surface: #181615;
+  --surface-2: #1F1C1A;
+  --border: #2A2623;
+  --border-strong: #3A3531;
+  --text: #ECE8DF;
+  --text-muted: #A39C90;
+  --text-faint: #766F65;
+  
+  --primary: #8C2A40;         /* buttons, text on it #FFFFFF */
+  --primary-hover: #A5334D;
+  --primary-press: #722032;
+  --primary-link: #D98F9E;    /* links, active nav text */
+  --primary-tint: #261A1D;
+  --on-primary: #FFFFFF;
+  
+  --brass: #C4A56E;
+  --success: #7FB08E;
+  --warning: #D4A24A;
+  --danger: #E07A7A;
+  --info: #5E7E9E;
+  
+  --focus-ring: #C4A56E;
+  --shadow-drawer: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Display & Heading Typography: Montserrat Medium/Bold & Satoshi */
+.font-serif, h1.font-serif, h2.font-serif, .case-title, .font-display, h1, h2, h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+/* Citations & Reference Numbers Only */
+.font-mono, code, kbd, samp, .tabular-nums, .font-tnum {
+  font-family: var(--font-mono, "JetBrains Mono", ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Hairlines */
+.hairline {
+  height: 1px;
+  background-color: var(--border);
+  border: 0;
+}
+
+.brass-hairline {
+  height: 1px;
+  background-color: var(--brass);
+  border: 0;
+}
+
+/* Focus styles */
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* Standard Buttons: 36px height, 6px radius, no shadow */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 6px;
+  background-color: var(--primary);
+  color: var(--on-primary);
+  border: 1px solid transparent;
+  transition: background-color 150ms ease-out;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.btn-primary:hover {
+  background-color: var(--primary-hover);
+}
+.btn-primary:active {
+  background-color: var(--primary-press);
+}
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 6px;
+  background-color: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  transition: background-color 150ms ease-out, border-color 150ms ease-out;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.btn-secondary:hover {
+  background-color: var(--surface-2);
+}
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 8px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px;
+  background-color: transparent;
+  color: var(--text-muted);
+  border: 1px solid transparent;
+  transition: color 150ms ease-out, background-color 150ms ease-out;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.btn-ghost:hover {
+  color: var(--text);
+  background-color: var(--surface-2);
+}
+
+.btn-destructive {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 6px;
+  background-color: var(--danger);
+  color: #FFFFFF;
+  border: 1px solid transparent;
+  transition: opacity 150ms ease-out;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-destructive:hover {
+  opacity: 0.9;
+}
+
+/* Inputs, Textareas, Selects: 36px default height, 6px radius */
+.input-field {
+  height: 36px;
+  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  background-color: var(--surface);
+  padding: 0 12px;
+  font-size: 14px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 150ms ease-out;
+}
+.input-field:focus {
+  border-color: var(--brass);
+}
+.input-field::placeholder {
+  color: var(--text-faint);
+}
+
+/* Specific padding-left overrides for input fields with leading icons */
+.input-field.pl-7, input.input-field.pl-7 { padding-left: 28px !important; }
+.input-field.pl-8, input.input-field.pl-8 { padding-left: 32px !important; }
+.input-field.pl-9, input.input-field.pl-9 { padding-left: 36px !important; }
+.input-field.pl-10, input.input-field.pl-10 { padding-left: 40px !important; }
+.input-field.pl-11, input.input-field.pl-11 { padding-left: 44px !important; }
+.input-field.pl-12, input.input-field.pl-12 { padding-left: 48px !important; }
+
+/* Citation Chip: 12px mono, 22px high, 6px radius, surface-2 fill */
+.citation-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 6px;
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  background-color: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: border-color 150ms ease-out, color 150ms ease-out;
+}
+.citation-chip:hover {
+  border-color: var(--brass);
+  color: var(--primary);
+}
+
+/* Inline Alert: surface background, 1px border, 3px left bar */
+.inline-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  font-size: 13px;
+}
+.inline-alert-danger {
+  border-left-color: var(--danger);
+}
+.inline-alert-warning {
+  border-left-color: var(--warning);
+}
+.inline-alert-info {
+  border-left-color: var(--info);
+}
+.inline-alert-success {
+  border-left-color: var(--success);
+}
+
+/* Tag / Filter Chip: 24px high, 6px radius, surface-2 fill */
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 8px;
+  font-size: 12px;
+  background-color: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  border: none;
+}
+
+/* Print Styles */
+@media print {
+  body {
+    background-color: #fff !important;
+    color: #000 !important;
   }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  header, aside, .no-print, button {
+    display: none !important;
+  }
 }

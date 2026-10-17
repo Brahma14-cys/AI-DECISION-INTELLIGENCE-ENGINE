@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AI Legal Decision Intelligence Engine
 
-## Getting Started
+Case-centered legal intelligence for advocates: source-linked case documents, cross-document analysis, and grounded legal research.
 
-First, run the development server:
+## Project layout
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- `src/app/` — Next.js website (TypeScript, App Router, Tailwind CSS)
+- `backend/` — FastAPI service and backend checks
+- `compose.yaml` — local PostgreSQL with pgvector
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Roadmap numbering
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+The numbered product modules use the advocate workflow: **1** case workspace and intake, **2** structured extraction and cross-document analysis, **3** case knowledge graph, **4** Indian legal research, and **5** case assistant. Summaries and decision support are case-workspace features. The technical solution document numbers retrieval, answer generation, claim verification, procedural compliance, and risk analysis separately; those are cross-cutting technical capabilities, not the same product-module numbers. Refer to both names when reporting progress to avoid treating product Module 4 (legal research) as technical Module 4 (grounded retrieval).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Prerequisites
 
-## Learn More
+- Node.js 20.19 or later and npm
+- Python 3.12 (the backend runtime; Python 3.14 may be used only after the full dependency set is verified there)
+- Docker Desktop (for the local PostgreSQL service)
 
-To learn more about Next.js, take a look at the following resources:
+## Run locally
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Copy `backend/.env.example` to `backend/.env`. Keep `.env` private and replace development defaults before any shared deployment.
+2. Configure a stable `APP_ENCRYPTION_KEY` before account setup. For a local development installation, leave the three `ADVOCATE_*` / `SESSION_SECRET` values blank and use the first-run `/signup` page after the database and migration steps; it creates the one advocate account in PostgreSQL. For production or an installation managed through environment configuration, run `python -m app.core.setup_auth` from `backend/`; it writes the advocate email, scrypt password hash, session secret, and an encryption key if none exists. The setup tool never saves the plaintext password. Once an account exists, `/signup` directs the user to sign in; this prototype does not support additional advocate accounts.
+3. From the project root, start PostgreSQL with `docker compose up -d db`.
+4. In one terminal, apply the schema and encrypt any existing local case material before starting the API:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+   ```powershell
+   cd backend
+   python -m alembic -c ../alembic.ini upgrade head
+   python -m app.core.migrate_encryption
+   ```
 
-## Deploy on Vercel
+   The encryption command is repeatable and reports counts only. Keep the key from `backend/.env` backed up securely before migrating existing data.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+5. In one terminal, install and start the API:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+   ```powershell
+   cd backend
+   python -m venv .venv
+   .\.venv\Scripts\Activate.ps1
+   python -m pip install -r requirements-dev.txt
+   python -m alembic -c ../alembic.ini upgrade head
+   uvicorn app.main:app --reload
+   ```
+
+6. In another terminal, start the website from the project root:
+
+   ```powershell
+   npm run dev
+   ```
+
+6. Open `http://localhost:3000` or `http://127.0.0.1:3000`. If this local development installation has no advocate account yet, choose **Create the advocate account**; otherwise sign in with the configured advocate account. API liveness is available at `http://localhost:8000/api/v1/health/live`; database readiness is at `http://localhost:8000/api/v1/health/ready`.
+
+All case and analysis APIs require the single advocate account. Browser-based first-run signup is limited to the local machine and development/test mode; production requires operator-configured credentials. Sessions use an HttpOnly, SameSite=Strict signed cookie with an eight-hour default lifetime, origin checks on writes, and per-IP login throttling. Changing `SESSION_SECRET` revokes all active sessions. Sensitive case fields, extracted text, analysis text, and summary JSON are encrypted with AES-256-GCM in the database; uploaded file bytes are encrypted at rest too. `APP_ENCRYPTION_KEY` must remain stable and have a secure backup separate from the database/files, or encrypted data becomes unreadable. Legacy plaintext rows/files can be read during transition; back them up, then run `python -m app.core.migrate_encryption` from `backend/` to encrypt them. Production startup requires the key, configured advocate credentials, and `sslmode=verify-full` for PostgreSQL.
+
+Each case also has an advocate-managed dates agenda. Add, complete, reopen, and remove dates manually; the dashboard includes open dates due within seven days or already past in its attention count. The application does not calculate court deadlines or send reminders. Extracted documents with at least 80 words are also compared locally for highly similar five-word text shingles; matches are a review warning only, and no source files or extracted text are changed.
+
+Uploads have per-file, per-request, document-count, and per-case storage limits. In `APP_ENV=production`, uploads fail closed unless `CLAMAV_COMMAND` points to a working ClamAV `clamscan` executable; scanner errors and infected results reject the file. PostgreSQL-persisted document/analysis/summary queue states survive API restarts; the worker reclaims interrupted `processing` records on startup. Run one API worker process for this single-advocate queue. An advocate can permanently delete an individual document or an entire case; deleting a document also clears derived summaries and analyses so citations cannot silently refer to removed material. There is no automatic retention expiry yet: define a retention schedule and encrypted database backups before shared deployment. Local upload files are stored under `data/uploads/`.
+
+## Module checks
+
+From `backend/`, run `python -m pytest`. In restricted environments where pytest cannot access the system temp directory, use `python -m pytest --basetemp=.pytest-tmp` instead. From the project root, run `npm run lint` and `npm run build`.
+
+**Module 1 — Case workspace and document intake.** Advocates can create and later edit case metadata, then upload multiple PDF, DOCX, JPG, PNG, and TIFF files, with a 50 MB per-file limit. The extractor reads PDF text page by page, PDF catalog and page file-attachment annotations, and supported embedded PDF/DOCX/image attachments; DOCX paragraphs, tables, headers, footers, notes, comments, and supported embedded PDF/DOCX/image attachments; and uses local English Tesseract OCR for scanned pages and images. Preprocessing normalizes Unicode and whitespace, removes repeated PDF margin headers/footers and page numbers despite small OCR variations, and cleans repeated edge lines in multi-page OCR output. OCR confidence below `OCR_REVIEW_CONFIDENCE_THRESHOLD` (70% by default) marks the document for review and is prominently flagged. The case workspace reports document status, PDF/image page counts, pages with/without extracted text, DOCX readable/extracted-location counts, and OCR locations requiring review. Blank pages are reported as containing no extractable text; they may be intentionally blank. Embedded extraction is bounded by count, size, and nesting depth; unsupported, oversized, skipped, or unreadable embedded attachments are flagged for review. OCR providers use a replaceable interface so an optional cloud fallback can be added later; cloud OCR is not configured or called in this build.
+
+Analysis and case-summary requests are blocked while extraction is pending. If any document failed or needs review, the advocate must retry/review it or explicitly acknowledge that the run will use readable extracted text only. That acknowledgement is recorded with the analysis or summary run and shown in its results. A failed retry clears stale extracted passages before reprocessing so old text is not presented as current coverage.
+
+For scanned PDFs and images, install the Tesseract OCR application with English language data and make it available on `PATH`. If it is installed elsewhere, set `TESSERACT_CMD` in `backend/.env` to its executable path. Digital PDFs and DOCX extraction do not require Tesseract. Apply database changes with `python -m alembic -c ../alembic.ini upgrade head` from `backend/`.
+
+**Production security setup is operator-specific and required before real case files.** Configure the single advocate email and password hash/session secret with `python -m app.core.setup_auth`; keep a secure, separate backup of the generated `APP_ENCRYPTION_KEY` and set `APP_ENCRYPTION_KEY_BACKUP_CONFIRMED=true` only after verifying it; use a PostgreSQL URL with `sslmode=verify-full`; and configure a working ClamAV executable in `CLAMAV_COMMAND`. Production startup now fails closed unless the encryption key and its backup confirmation, advocate credentials, TLS database connection, and malware scanner executable (including a `clamscan --version` check) are configured. The app cannot create or independently verify an off-machine key backup; that backup location and access policy must be chosen by the operator. Use a billing-enabled Gemini project (`GEMINI_DATA_TIER=paid`) before sending confidential case text to Gemini.
+
+**Module 2 — Structured extraction and case intelligence.** Gemini extracts source-grounded facts, classifies sentences as fact/issue/irrelevant, and identifies entities and legal references. Rule-based backstops extract common English dates, INR amounts, sections/rules, statutes, and Indian case citation formats. The legacy OpenNyAI spaCy NER runtime is retired and must remain disabled: its pinned spaCy 3.2.x package required Python 3.10 and achieved weak exact-span F1 (0.165) on the judgment-domain KING benchmark. The backend uses Python 3.12; no Python 3.10 runtime is part of the supported setup. A replacement NER model may be added after it supports Python 3.12 or 3.14 and passes documented evaluation on target document types. Text is segmented at sentence boundaries, common legal abbreviations and decimal numbers are protected from false splits, and oversized passages are bounded while preserving source offsets. Segments over 8,000 characters split at legal punctuation, whitespace, or as a final fallback at a hard character boundary for an unbroken token; exact source offsets are retained. Repeated matching mentions use separate end-exclusive offsets, and long fact quotes use the full matched span. Gemini confidence values remain estimates rather than calibrated probabilities. The KING NER baseline and its explicit label mapping are documented at `backend/evaluation/README.md`; its low scores are not a pleading/affidavit quality estimate. `synthetic_fact_issue_seed.jsonl` supplies only prompt-development examples; advocate-reviewed pleadings and affidavit annotations are still required for a real fact/issue/irrelevant gold set.
+
+Cross-document analysis retrieves candidate fact pairs across different documents using Gemini Embedding 2 cosine similarity alongside exact topic/value matches and bounded lexical overlap. Topic keys do not need to match exactly. Embeddings are generated for a confidence-ranked, document-balanced subset of up to 800 facts per analysis, held in memory for that run, and discarded; they are not saved in PostgreSQL. Up to eight semantic neighbours per fact are screened at an initial 0.72 similarity threshold, then merged with lexical candidates. Gemini is instructed to assess only those candidate pairs, and the backend rejects findings for pairs that were not retrieved. Embedding failures fall back to lexical matching. Each completed analysis stores encrypted retrieval counts and a warning, and the case interface shows how many facts and candidate pairs were screened. These are search settings, not calibrated accuracy measures; missed candidates remain possible. Advocate-claim evidence uses inverse-document-frequency-weighted lexical ranking over extracted facts, rather than raw token counts. Results are labeled supported, partially supported, or unsupported, with possible overstatement as a separate flag. A missing match is treated as inconclusive rather than proof that evidence does not exist. Reviews cite extracted fact passages for advocate verification. Source links open the extracted passage and highlight the exact range. Without advocate-labeled pleadings/affidavits and related/unrelated fact pairs, extraction, entity, contradiction, and retrieval precision/recall are not measured and Gemini confidence is not calibrated.
+
+Module 2 analysis, graph relation classification, and the case-summary feature require `GEMINI_API_KEY`. `GEMINI_DATA_TIER=free` is accepted only when `APP_ENV=development` or `test`, and is intended for synthetic or fully redacted test documents because free-tier prompts and responses may be used to improve Google products. Use `GEMINI_DATA_TIER=paid` with a billing-enabled Google project before processing confidential case material. A manual analysis sends extracted text from readable pages/paragraphs in that case, plus any advocate-entered claims, to Gemini in batches; original files, filenames, and source locators remain local. Review Google's current [Gemini API data terms](https://ai.google.dev/gemini-api/terms) before using case content. The default setting is `disabled`, and no key is included in the repository.
+
+**Case summary feature (separate from the numbered module plan).** Generates a narrative summary and a structured advocate brief across all readable case documents. Large cases are summarized in batches and then integrated. Every displayed summary point includes a source filename, page/paragraph locator, and quote validated against extracted text. The summary reports legal material mentioned in the uploaded file but does not add outside legal authorities.
+
+**Module 3 — Case Knowledge Graph.** After a completed Module 2 run, the graph builder creates nodes for extracted facts, issue sentences, source evidence, legal references, and parties whose role is explicit in the source. Existing Module 2 findings provide source-grounded support/contradiction edges. Rule-based same-document/proximity and term-overlap screening selects candidate fact/issue and provision/issue pairs; Gemini classifies only those pairs as supports, contradicts, applies_to, or unrelated. Sentence-Transformers `all-MiniLM-L6-v2` creates normalized 384-dimensional node embeddings. Neo4j stores nodes, edges, and vectors; PostgreSQL stores an application-encrypted graph snapshot for the case UI. The graph is built from the latest completed Module 2 analysis via the case workspace button or `POST /api/v1/cases/{case_id}/knowledge-graph`. Case-scoped hybrid graph search ranks stored nodes with local embedding similarity and lexical overlap, returns source locators and adjacent relationship context, and is exposed at `POST /api/v1/cases/{case_id}/knowledge-graph/search`. The route rejects stale graphs and only searches nodes belonging to that case and graph run.
+
+For local development, add the same `NEO4J_USER` and `NEO4J_PASSWORD` values to the project-root `.env` (used by Compose) and `backend/.env` (used by the API), then run `docker compose up -d graph` and apply the database migration with `alembic upgrade head` from `backend/`. Install the backend dependencies from `backend/requirements.txt`, set `KNOWLEDGE_GRAPH_ENABLED=true`, and restart the API. The first graph build downloads the sentence embedding model from Hugging Face and runs it on CPU. The local Compose password is development-only. Neo4j receives case text and embeddings; production graph use is blocked unless the connection uses verified TLS and encrypted storage is confirmed. Use synthetic/redacted material during local development.
+
+**Module 4 — Legal research.** The case workspace provides advocate-initiated research against separate India Code and Indian Kanoon providers. It supports paginated searches, court/date filters, provision-linked judgment lookup, India Code section text and statutory mappings, and Indian Kanoon judgment detail, metadata (including available citation/cited-by data), and query-matched passage retrieval. If a completed case analysis or graph exists, the UI can show short research leads from extracted issues, provisions, and references; these stay local until an advocate chooses and submits one. Provider failures are isolated where possible. Selected Indian Kanoon judgments can be used to prepare a Gemini research note; the UI asks before sending the query and public judgment text to Gemini, and returned quotations are checked against retrieved text. Search results and retrieved authority text are not persisted in the case database. Results remain candidate authorities: verify amendments, current text, jurisdiction, and precedential status before relying on them.
+
+India Code is a read-only JSON API and requires no credential. Indian Kanoon requires its configured API authentication. Set `INDIANKANOON_PRIVATE_KEY_PATH=secrets/indiankanoon_private.pem` to use a private-key file under `backend/secrets/`, or configure valid RSA PEM text in `INDIANKANOON_PRIVATE_KEY`; `INDIANKANOON_API_TOKEN` is also supported. Set the registered `INDIANKANOON_CUSTOMER_EMAIL` in `backend/.env`. For private-key authentication, its public key must be registered with Indian Kanoon. Secrets stay on the backend. Indian Kanoon attribution is displayed with results. Provider responses are cached in memory for `LEGAL_RESEARCH_CACHE_TTL_SECONDS` (default 300); requests are capped per case by `LEGAL_RESEARCH_SEARCHES_PER_MINUTE` (default 12). Indian Kanoon search/detail/metadata operations can incur charges under the provider plan; review its API terms and pricing before production use.
+
+Module 1's local upload, text extraction, and Tesseract OCR do not require model-provider keys. Module 2 requires Gemini for model-based sentence classification, extraction, and cross-document analysis. Module 3 requires Gemini, Neo4j, and Sentence-Transformers. Module 4 uses the configured legal research provider credentials described above. The separate summary feature requires Gemini. Regex indicators can still run locally if Gemini is unavailable.

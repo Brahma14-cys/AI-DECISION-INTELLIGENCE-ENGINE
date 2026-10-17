@@ -1,0 +1,42 @@
+services:
+  db:
+    image: pgvector/pgvector:pg18-trixie
+    container_name: legal-engine-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-legal_engine}
+      POSTGRES_USER: ${POSTGRES_USER:-legal_engine}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local_dev_only}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - legal_engine_postgres:/var/lib/postgresql
+      - ./infra/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-legal_engine} -d ${POSTGRES_DB:-legal_engine}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  graph:
+    image: neo4j:5.26-community
+    container_name: legal-engine-graph
+    restart: unless-stopped
+    environment:
+      NEO4J_AUTH: ${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-local_graph_dev_only}
+      NEO4J_server_memory_heap_initial__size: 256m
+      NEO4J_server_memory_heap_max__size: 1G
+    ports:
+      - "127.0.0.1:${NEO4J_HTTP_PORT:-7474}:7474"
+      - "127.0.0.1:${NEO4J_BOLT_PORT:-7687}:7687"
+    volumes:
+      - legal_engine_neo4j:/data
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -a bolt://localhost:7687 -u ${NEO4J_USER:-neo4j} -p ${NEO4J_PASSWORD:-local_graph_dev_only} 'RETURN 1' >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  legal_engine_postgres:
+  legal_engine_neo4j:
